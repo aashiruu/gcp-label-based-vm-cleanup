@@ -1,0 +1,42 @@
+google-api-python-client
+functions-framework
+
+gcloud functions deploy vm-label-cleanup \
+    --gen2 \
+    --runtime=python311 \
+    --region=us-central1 \
+    --source=. \
+    --entry-point=stop_vm_on_label \
+    --trigger-event-filters="type=google.cloud.audit.log.v1.written" \
+    --trigger-event-filters="serviceName=compute.googleapis.com" \
+    --trigger-event-filters="methodName=beta.compute.instances.insertLabel" \
+    --service-account=vm-cleanup-tool@$PROJECT_ID.iam.gserviceaccount.com
+
+Testing the Solution
+
+1. Create a Test VM: Create a VM in your GCP project. Note its name and zone.
+   ```bash
+   gcloud compute instances create test-vm-1 --zone=us-central1-a --machine-type=e2-micro
+   ```
+2. Add the Magic Label: Add the auto-cleanup: true label to the VM. This is the action that will trigger the function.
+   ```bash
+   gcloud compute instances add-labels test-vm-1 --zone=us-central1-a --labels=auto-cleanup=true
+   ```
+3. Verify the Action:
+   · Check the logs of your Cloud Function in the GCP Console to see the execution.
+   · After a minute, check the status of your VM. It should be in the STOPPING or TERMINATED state (depending on how you configure the function).
+
+🧹 Cleaning Up
+
+To avoid incurring charges, delete the Google Cloud resources you created:
+
+```bash
+# Delete the Cloud Function
+gcloud functions delete vm-label-cleanup --gen2 --region=us-central1
+
+# Delete the service account
+gcloud iam service-accounts delete vm-cleanup-tool@$PROJECT_ID.iam.gserviceaccount.com
+
+# Delete the test VM (if it still exists)
+gcloud compute instances delete test-vm-1 --zone=us-central1-a
+```
